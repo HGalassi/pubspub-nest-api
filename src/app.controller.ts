@@ -18,13 +18,12 @@ export class AppController {
 
   @Get()
   async getUserById(@Query('id') id : number) {
-
-
-
+    console.log(' get user by id')
     try{
       let resp = await firstValueFrom(this.userService.findAll(id))
       return resp;
     }catch(err){
+      console.log('caiu no excep', err)
       throw new HttpException(err.response.statusText, err.response.status)
     }
   }
@@ -72,7 +71,7 @@ export class AppController {
       to: 'hgalassi17@gmail.com',
       from: 'hgalassi17@gmail.com',
       subject: 'Sending Email with NestJS',
-      html: `<h3 style="color: red">This email comes from ${user.first_name} pubsub api.. =) User created with success! </h3>`,
+      html: `<h3 style="color: red">This email comes from ${user.first_name} ${user.last_name} pubsub api.. =) User created with success! </h3>`,
     });
   }
 }
