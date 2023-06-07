@@ -3,29 +3,27 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UserService } from './app.user.service';
 import { ConfigService } from '@nestjs/config';
-import { HttpService } from '@nestjs/axios';
 import { getModelToken } from '@nestjs/mongoose';
-import { User, UserSchema } from './user.schema';
-import { Connection, connect, Model } from "mongoose";
+import { User } from './user.schema';
+import { Connection, Model } from "mongoose";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import { ModuleMocker } from 'jest-mock';
-import {expect, jest, test} from '@jest/globals';
+import {jest} from '@jest/globals';
 import { MailerService } from '@nestjs-modules/mailer';
-import { createMock, DeepMocked } from '@golevelup/ts-jest';
-
-
-// import { AmqpConnection } from '@golevelup/nestjs-rabbitmq'
-
-
-
+import mockUserService from './__mocks__/user.service.mock.axios'
+import { HttpException, NotAcceptableException } from '@nestjs/common';
+import { RpcException } from '@nestjs/microservices';
 
 describe('AppController', () => {
+  const axios = require("axios");
+  jest.mock("axios");
   let appController: AppController;
   let mongod: MongoMemoryServer;
   let mongoConnection: Connection;
   let userModel: Model<User>;
   let configService: ConfigService
   let mock: ModuleMocker 
+  let userSerivce: UserService
 
   const httpServiceMock = {
     get: jest.fn(),
@@ -39,29 +37,13 @@ describe('AppController', () => {
     post: jest.fn()
   }
 
-  const userServiceMock={
-    findAll: jest.fn()
-  }
-
-  beforeAll(async () => {
-    mongod = await MongoMemoryServer.create();
-    const uri = mongod.getUri();
-    mongoConnection = (await connect(uri)).connection;
-    userModel = mongoConnection.model(User.name, UserSchema);
-  })
 
   beforeEach(async () => {
-    const collections = mongoConnection.collections;
-    for (const key in collections) {
-      const collection = collections[key];
-      await collection.deleteMany({});
-    }
-    
     const app: TestingModule = await Test.createTestingModule({
       providers: [  
         {
           provide: UserService,
-          useValue: userServiceMock,
+          useValue:mockUserService
         },
         {
           provide: getModelToken(User.name),  useValue: userModel
@@ -77,30 +59,33 @@ describe('AppController', () => {
                 if(key === 'RABBITMQ_USER')
                   return "mockuser"
              })}
-      
         },
-    
-      
-    AppService],     controllers: [AppController],
+    AppService],     controllers: [AppController]
     }).compile();
     configService = app.get<ConfigService>(ConfigService);
     appController = app.get<AppController>(AppController);
+    userSerivce = app.get<UserService>(UserService);
   });
 
-  describe('root', () => {
-    // userServiceTest
-    it('should test findAll()!"', async() => {
-      let expected = {
-        data:{
-          first_name : 'aName', last_name: 'aLastName'
-        }
-      }
-        await userServiceMock.findAll.mockReturnValue({data: {
-            first_name : 'aName', last_name: 'aLastName'
-        }})
+  it ("should test get user by id" , async () => {
+    mockUserService.findAll.mockImplementationOnce(() => Promise.resolve({
+      data: {first_name: 'aName', last_name: 'aLastName'}
+    }))
+    const resp = await userSerivce.findAll(1)     
+    expect(resp).toEqual({data: { first_name: 'aName', last_name: 'aLastName'}}) 
+  })
 
-      const result = await userServiceMock.findAll(1);
-      expect(result).toEqual(expected);
-    });
-  });
-});
+  // response: {
+  //   status: 404,
+  //   statusText: 'Not Found',
+
+  fit ("should test get user by id and fails" , async () => {
+    mockUserService.findAll.mockImplementationOnce(() => Promise.resolve({response: {status: 404, statusText: 'Not Found'}}))
+    const resp = userSerivce.findAll(100)
+    // const resp = await userSerivce.findAll(100)   
+    expect(resp).toBe({response: {status: 404, statusText: 'Not Found'}})  
+  })
+})
+
+
+

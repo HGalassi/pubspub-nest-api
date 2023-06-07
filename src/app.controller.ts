@@ -1,7 +1,7 @@
 import { Body, Controller, Get, HttpException, HttpStatus, NotFoundException, Param, Post, Query, Req } from '@nestjs/common';
 import { AppService } from './app.service';
 import { UserService } from './app.user.service';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, lastValueFrom } from 'rxjs';
 import { InjectModel } from '@nestjs/mongoose';
 import { User } from './user.schema';
 import { Model } from 'mongoose';
@@ -11,19 +11,18 @@ import { UserDto } from './app.user.dto';
 
 @Controller('/api/user')
 export class AppController {
-  constructor(private readonly appService: AppService, private  userService: UserService,
-     @InjectModel(User.name) private userModel: Model<User>,
-     private mailerService: MailerService
+  constructor(private readonly appService: AppService, private  userService: UserService, private mailerService: MailerService
      ) {}
 
   @Get()
   async getUserById(@Query('id') id : number) {
-    console.log(' get user by id')
+    console.log('testing')
+    console.log(this.userService.findAll(id))
     try{
-      let resp = await firstValueFrom(this.userService.findAll(id))
+      let resp =  (await firstValueFrom(this.userService.findAll(id))).data
       return resp;
     }catch(err){
-      console.log('caiu no excep', err)
+      console.log(err)
       throw new HttpException(err.response.statusText, err.response.status)
     }
   }
@@ -39,12 +38,15 @@ export class AppController {
     }
       
     try{ 
-      const createdUser = new this.userModel(user)
-      createdUser.save();
-      this.sendEmail(createdUser);
-      this.userService.subsCribe(user)
+      this.appService.saveUser(user).then(res => {
+        console.log(res)
+        this.sendEmail(res)
+        this.userService.subsCribe(res)
+      })
+
     }catch(err){
       console.log(err)
+      throw new HttpException(err.response.statusText, err.response.status)
     }
 
     return userDto;
@@ -54,11 +56,10 @@ export class AppController {
   async getAvatar(@Param('id') id){
 
     //checks if image not stored yet
-    const existingUSer = await this.userModel.find({id: id}, { avatar:1}).exec();
+    const existingUSer = this.appService.findUser(id)
 
     //if query returns > 0 results, show result from db
     if (existingUSer){
-      console.log(existingUSer)
       return JSON.stringify(existingUSer)
     }
 

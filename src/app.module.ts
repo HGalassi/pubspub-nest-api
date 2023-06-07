@@ -14,7 +14,6 @@ import SubscribersController from './subscriber.controller';
 
 @Module({
   imports: [ConfigModule.forRoot(),HttpModule,
-    
     MailerModule.forRoot({
       transport: {
         host: 'smtp.gmail.com',
