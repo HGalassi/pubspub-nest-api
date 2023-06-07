@@ -16,13 +16,12 @@ export class AppController {
 
   @Get()
   async getUserById(@Query('id') id : number) {
-    console.log('testing')
-    console.log(this.userService.findAll(id))
     try{
       let resp =  (await firstValueFrom(this.userService.findAll(id))).data
       return resp;
     }catch(err){
-      console.log(err)
+      console.log('err on catch..', err)
+      this.someErrorLoggingThings(err)
       throw new HttpException(err.response.statusText, err.response.status)
     }
   }
@@ -75,4 +74,11 @@ export class AppController {
       html: `<h3 style="color: red">This email comes from ${user.first_name} ${user.last_name} pubsub api.. =) User created with success! </h3>`,
     });
   }
+
+  public someErrorLoggingThings(err) {
+    //do smthing
+    console.log(err)
+  }
 }
+
+

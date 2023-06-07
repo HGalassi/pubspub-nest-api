@@ -13,6 +13,7 @@ import { MailerService } from '@nestjs-modules/mailer';
 import mockUserService from './__mocks__/user.service.mock.axios'
 import { HttpException, NotAcceptableException } from '@nestjs/common';
 import { RpcException } from '@nestjs/microservices';
+import { ExternalExceptionFilter } from '@nestjs/core/exceptions/external-exception-filter';
 
 describe('AppController', () => {
   const axios = require("axios");
@@ -75,15 +76,14 @@ describe('AppController', () => {
     expect(resp).toEqual({data: { first_name: 'aName', last_name: 'aLastName'}}) 
   })
 
-  // response: {
-  //   status: 404,
-  //   statusText: 'Not Found',
 
   fit ("should test get user by id and fails" , async () => {
-    mockUserService.findAll.mockImplementationOnce(() => Promise.resolve({response: {status: 404, statusText: 'Not Found'}}))
-    const resp = userSerivce.findAll(100)
-    // const resp = await userSerivce.findAll(100)   
-    expect(resp).toBe({response: {status: 404, statusText: 'Not Found'}})  
+    mockUserService.findAll.mockImplementation(() => {
+      throw new HttpException('Not Found', 404);
+    });   
+    const spyOnLoggingThings = jest.spyOn(appController,'someErrorLoggingThings');
+    await expect(appController.getUserById(100)).rejects.toThrow(HttpException) 	
+    expect(spyOnLoggingThings).toBeCalledTimes(1)
   })
 })
 
